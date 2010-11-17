@@ -1,0 +1,511 @@
+/*
+    Ringling Rendering Submission UI
+    0.8
+    
+    created by Bohdon Sayre
+    bsayre@c.ringling.edu
+    
+    unique prefix: rrUI
+    
+    Description:
+        This script provides a gui for submitting jobs
+        to the ringling rendering grid.
+
+    Version 0.1:
+                > Auto grabbing of current scene information
+*/
+
+/*
+    TODO:
+        finish submission checks
+        format submission string properly
+        send information to web cgi
+
+*/
+
+
+//GUI for submitting scenes
+global proc rrSubmit() {
+    string $rrUIWin = "rrUIWin";
+    
+    //check for pre-existing window
+    if (`window -ex $rrUIWin`) deleteUI -wnd $rrUIWin;
+    
+    //create window
+    window -w 100 -h 100 -rtf 0 -mb 1 -s 1 -mxb 0 -mnc ("window -e -t \"Ringling Render Submission 0.1\" "+$rrUIWin+";") -t "Ringling Render Submission 0.1" $rrUIWin;
+    
+    menu -l "Edit";
+        menuItem -l "Refresh"
+            -c "rrUIGetCurSceneInfo";
+    /*
+    menu -l "Options";
+        menuItem -en 0 -l "Auto turn on Statistics"
+            rrUIAutoStatisticsCheck;
+    */
+    
+    
+    formLayout -nd 100 rrUIMainForm;
+    
+    //radio button for current or other scene
+    columnLayout -adj 1 rrUITypeLayout;
+        radioButtonGrp -l "Scene to submit" -cw3 120 60 60 -nrb 2
+            -la2 "Current" "Other" -sl 1
+            -on1 "rrUITypeSwitch(1)"
+            -on2 "rrUITypeSwitch(0)"
+            rrUITypeRadio;
+        separator -h 10;
+        setParent -top;
+    
+    //scene file information, disabled by default because current scene is default
+    frameLayout -bs "etchedIn" -l "Maya File Information" -li 8 -la "center" -mh 5 rrUIFileInfoLayout;
+        columnLayout ;
+            rowLayout -nc 3 -cw3 85 300 50 -cl3 "right" "left" "center";
+                text -w 80 -l "Scene File";
+                textField -w 300 rrUISceneField;
+                symbolButton -i navbuttonbrowse.xpm
+                    -c "fileBrowserWithFilter(\"rrUISceneHandler\", \"Open\", \"Choose a scene file...\", \"Maya ASCII (*.ma)\", 0, {\"Maya ASCII (*.ma),*.ma\"}, \"\")"
+                    rrUISceneBrowseBtn;
+                setParent ..;
+            rowLayout -nc 3 -cw3 85 300 50 -cl3 "right" "left" "center";
+                text -w 80 -l "Scene Directory";
+                textField -w 300 rrUISceneDirField;
+                symbolButton -i navbuttonbrowse.xpm
+                    -c "fileBrowserWithFilter(\"rrUISceneDirHandler\", \"Choose\", \"Choose the scene file's directory...\", \"Directory\", 4, {\"Directory\"}, \"\")"
+                    rrUISceneDirBrowseBtn;
+                setParent ..;
+            rowLayout -nc 3 -cw3 85 300 50 -cl3 "right" "left" "center";
+                text -w 80 -l "Project Directory";
+                textField -w 300 rrUIProjDirField;
+                symbolButton -i navbuttonbrowse.xpm
+                    -c "fileBrowserWithFilter(\"rrUIProjDirHandler\", \"Choose\", \"Choose the project directory...\", \"Directory\", 4, {\"Directory\"}, \"\")"
+                    rrUIProjDirBrowseBtn;
+                setParent ..;
+            setParent -top;
+            
+    //render information
+    frameLayout -bs "etchedIn" -l "Grid Settings" -li 8 -la "center" -mh 5 rrUIRenderInfoLayout;
+        columnLayout;
+            rowLayout -nc 2 -cw2 120 162 -cl2 "right" "left" ;
+                text -w 115 -l "Job Name";
+                textField  -w 160
+                    -ann "Name for the job on the farm. If blank, name will be the scene name"
+                    rrUIJobNameField;
+                setParent ..;
+            separator -h 2 -st none;
+            rowLayout -nc 2 -cw2 120 162 -cl2 "right" "left";
+                text -w 115 -l "Frame Range Override";
+                textField  -w 160
+                    -ann "ex. 1-175. If blank, frame range will be taken from the .ma"
+                    rrUIFrameRangeField;
+                setParent ..;
+            separator -h 2 -st none;
+            rowLayout -nc 2 -cw2 120 50 -cl2 "right" "left";
+                text -w 115 -l "Chunk Size";
+                intField -w 50 -v 40
+                    -ann "Number of ribs to be generated on a single machine at once"
+                    rrUIChunkSizeField;
+                setParent ..;
+            separator -h 2 -st none;
+            rowLayout -nc 2 -cw2 120 50 -cl2 "right" "left";
+                text -w 115 -l "Caches Updated";
+                checkBox -l "" -v 1 rrUIUpdateCachesCheck;
+                setParent ..;
+            setParent -top;
+            
+    //current scene information (visibible only when Current is selected in rrTypeRadio)
+    frameLayout -bs "etchedIn" -l "Current Scene Information" -li 8 -la "center" rrUICurInfoLayout;
+        
+        columnLayout -adj 1;
+            formLayout rrUIRenderGlobalsBtnLayout;
+                symbolButton -w 30 -h 30 -i "rvrenderglobals.xpm" -c "unifiedRenderGlobalsWindow" rrUIRenderGlobalsBtn;
+                formLayout -e
+                    -af rrUIRenderGlobalsBtn "right" 4
+                    rrUIRenderGlobalsBtnLayout;
+                columnLayout -adj 1;
+                    separator -h 5 -st none;
+                    rowLayout -nc 2 -cw2 120 100 -cl2 "right" "left";
+                        text -w 115 -l "Resolution:";
+                        text -w 150 -l "" rrUIResolutionText;
+                        setParent ..;
+                    separator -h 4 -st none;
+                    rowLayout -nc 2 -cw2 120 100 -cl2 "right" "left";
+                        text -w 115 -l "Frames:";
+                        text -w 150 -l "" rrUIFramesText;
+                        setParent ..;
+                    separator -h 4 -st none;
+                    rowLayout -nc 2 -cw2 120 100 -cl2 "right" "center";
+                        text -w 115 -l "Image Format:";
+                        text -w 150 -l "" rrUIImageFormatText;
+                        setParent ..;
+                    separator -h 4 -st none;
+                    rowLayout -nc 2 -cw2 120 100 -cl2 "right" "left";
+                        columnLayout;
+                            text -w 115 -al "right" -l "Renderable Cameras:";
+                            setParent ..;
+                        text -w 150 -l "" rrUIRenderableCamsText;
+                        setParent ..;
+                        
+                    separator -h 4 -st none;
+                    rowLayout -nc 2 -cw2 120 100 -cl2 "right" "left";
+                        columnLayout;
+                            text -w 115 -al "right" -l "Renderer Settings:";
+                            setParent ..;
+                        text -w 150 -fn "smallFixedWidthFont" -l "" rrUIRendererSettingsText;
+                        setParent ..;
+            setParent -top;
+    
+    popupMenu -p rrUICurInfoLayout;
+            menuItem -l "Refresh" -c "rrUIGetCurSceneInfo";
+    
+    //submit and close buttons
+    button -l "Submit" -h 26 -c ("rrUISubmit") rrUISubmitBtn;
+    button -l "Close" -h 26 -c ("deleteUI -wnd "+$rrUIWin) rrUICloseBtn;
+                        
+    formLayout -e
+        -af rrUITypeLayout "top" 5
+        -af rrUITypeLayout "left" 0
+        -af rrUITypeLayout "right" 0
+        
+        -ac rrUIFileInfoLayout "top" 5 rrUITypeLayout
+        -af rrUIFileInfoLayout "left" 0
+        -af rrUIFileInfoLayout "right" 0
+        
+        -ac rrUIRenderInfoLayout "top" 5 rrUIFileInfoLayout
+        -af rrUIRenderInfoLayout "left" 0
+        -af rrUIRenderInfoLayout "right" 0
+        
+        -ac rrUICurInfoLayout "top" 5 rrUIRenderInfoLayout
+        -af rrUICurInfoLayout "left" 0
+        -af rrUICurInfoLayout "right" 0
+        
+        -af rrUISubmitBtn "bottom" 5
+        -af rrUISubmitBtn "left" 5
+        -ap rrUISubmitBtn "right" 2 50
+        
+        -af rrUICloseBtn "bottom" 5
+        -ap rrUICloseBtn "left" 2 50
+        -af rrUICloseBtn "right" 5
+        rrUIMainForm;
+    
+    window -e -w 425 $rrUIWin;
+    showWindow $rrUIWin;
+    
+    rrUITypeSwitch(1);
+    rrUIGetCurSceneInfo;
+}
+
+
+
+
+
+
+//==================================================================================================
+//rrUISubmit: submits information gathered in rrUIWin to the web cgi
+global proc rrUISubmit() {
+    //gather variables
+    string $scene = `textField -q -tx rrUISceneField`;
+    string $sceneDir = `textField -q -tx rrUISceneDirField`;
+    string $projDir = `textField -q -tx rrUIProjDirField`;
+    string $jobName = `textField -q -tx rrUIJobNameField`;
+    string $frameRange = `textField -q -tx rrUIFrameRangeField`;
+    string $startFrame;
+    string $endFrame;
+    int $chunkSize = `intField -q -v rrUIChunkSizeField`;
+    int $updateCaches = `checkBox -q -v rrUIUpdateCachesCheck`;
+    string $rendererInt = (`getAttr "defaultRenderGlobals.currentRenderer"` == "mayaSoftware" ? 5 : 0);
+    int $useFur = 0;
+    int $useHair = 0;
+    int $useMuscle = 0;
+    int $useNcloth = 0;
+    int $useParticles = 0;
+    
+    
+    //perform necessary checks
+    //swap all path '/' to '\'
+    $sceneDir = substituteAllString($sceneDir, "/", "\\");
+    $projDir = substituteAllString($projDir, "/", "\\");
+    //check job name
+    //check scene file exists
+    //check renderable cameras
+    //check frame range format
+    //check renderer
+    //check for features (fur, cloth, particles...)
+    //confirm dialog?
+    
+    //submit python http request
+    print ("\n// Ringling Render Submission... //\n\n");
+    
+    python("\
+#build dictionary\n\
+renderParams = dict()\n\
+import os\n\
+renderParams['user'] = os.getenv('USERNAME') if os.name == 'nt' else os.getlogin()\n\
+renderParams['jobName'] = '"+$jobName+"'\n\
+renderParams['clusterSize'] = '"+$chunkSize+"'\n\
+renderParams['mayaFile'] = '"+$scene+"'\n\
+renderParams['mayaFileLoc'] = '"+$sceneDir+"'\n\
+renderParams['mayaProjectLoc'] = '"+$projDir+"'\n\
+renderParams['renderer'] = '"+$rendererInt+"'\n\
+renderParams['startFrame'] = '"+$startFrame+"'\n\
+renderParams['endFrame'] = '"+$endFrame+"'\n\
+renderParams['updateCaches'] = '"+$updateCaches+"'\n\
+renderParams['useFur'] = '"+$useFur+"'\n\
+renderParams['useHair'] = '"+$useHair+"'\n\
+renderParams['useMuscle'] = '"+$useMuscle+"'\n\
+renderParams['useNcloth'] = '"+$useNcloth+"'\n\
+renderParams['useParticles'] = '"+$useParticles+"'\n\
+print(renderParams)\n\
+\n\
+#send to cgi\n\
+import httplib, urllib\n\
+params = urllib.urlencode(renderParams)\n\
+headers = {\"Content-type\": \"application/x-www-form-urlencoded\", \"Accept\": \"text/plain\"}\n\
+\n\
+conn = httplib.HTTPConnection(\"216.38.179.213\")\n\
+conn.request(\"POST\", \"/cgi-bin/submitrender_maya_sge_debug.cgi\", params, headers)\n\
+response = conn.getresponse()\n\
+print response.status, response.reason\n\
+\n\
+data = \"<document>%s</document>\" % response.read()\n\
+conn.close()\n\
+\n\
+print data");
+}
+
+
+
+
+
+
+//==================================================================================================
+//switches between current and other layouts
+global proc rrUITypeSwitch(int $current) {
+    if (!`window -ex rrUIWin`)
+        return ;
+    
+    if ($current) {
+        //setup for current scene gui
+        frameLayout -e -vis 1 rrUICurInfoLayout;
+        //disable fields and buttons
+        textField -e -ed 0 -tx "" rrUISceneField;
+        textField -e -ed 0 -tx "" rrUISceneDirField;
+        textField -e -ed 0 -tx "" rrUIProjDirField;
+        symbolButton -e -en 0 rrUISceneBrowseBtn;
+        symbolButton -e -en 0 rrUISceneDirBrowseBtn;
+        symbolButton -e -en 0 rrUIProjDirBrowseBtn;
+        //clear job name
+        textField -e -tx "" rrUIJobNameField;
+        rrUIGetCurSceneInfo;
+    } else {
+        //setup for other scene gui
+        frameLayout -e -vis 0 rrUICurInfoLayout;
+        frameLayout -e -en 1 rrUIFileInfoLayout;
+        //opposite of get cur file info is clearing the maya file fields
+        textField -e -ed 1 -tx "" rrUISceneField;
+        textField -e -ed 1 -tx "" rrUISceneDirField;
+        textField -e -ed 1 -tx "" rrUIProjDirField;
+        symbolButton -e -en 1 rrUISceneBrowseBtn;
+        symbolButton -e -en 1 rrUISceneDirBrowseBtn;
+        symbolButton -e -en 1 rrUIProjDirBrowseBtn;
+        //clear job name
+        textField -e -tx "" rrUIJobNameField;
+    }
+}
+
+
+
+
+
+
+//==================================================================================================
+//populates the cur info layout with the scene settings
+global proc rrUIGetCurSceneInfo() {
+    //trace ("//rrUIGetCurSceneInfo\n");
+    if (!`window -ex rrUIWin`) return;
+    if (`radioButtonGrp -q -sl rrUITypeRadio` != 1) return;
+    //directories
+    string $scene = `file -q -shn -sn`;
+    string $sceneDir = `file -q -sn`;
+    $sceneDir = `substitute ("/"+$scene) $sceneDir ""`;
+    $sceneDir = `rrMAYAPath $sceneDir`;
+    string $projDir = `rrProjPath $sceneDir`;
+    textField -e -tx $scene rrUISceneField;
+    textField -e -tx $sceneDir rrUISceneDirField;
+    textField -e -tx $projDir rrUIProjDirField;
+    
+    
+    //common settings
+    string $imgPrefix = `getAttr defaultRenderGlobals.imageFilePrefix`;
+    int $rWidth = `getAttr "defaultResolution.width"`;
+    int $rHeight = `getAttr "defaultResolution.height"`;
+    string $startFrame = `getAttr defaultRenderGlobals.startFrame`;
+    string $endFrame = `getAttr defaultRenderGlobals.endFrame`;
+    float $byFrame = `getAttr defaultRenderGlobals.byFrameStep`;
+    int $padding = `getAttr defaultRenderGlobals.extensionPadding`;
+    //add padding to start and end frame
+    while(size($startFrame) < $padding) {
+        $startFrame = "0"+$startFrame;
+    }
+    while(size($endFrame) < $padding) {
+        $endFrame = "0"+$endFrame;
+    }
+    text -e -l ($rWidth+" x "+$rHeight) rrUIResolutionText;
+    text -e -l ($startFrame+" - "+$endFrame+", by "+$byFrame) rrUIFramesText;    
+    
+    //renderable cameras
+    string $camList[] = `ls -ca`;
+    string $renderCamList[];
+    for ($item in $camList) {
+        if (`getAttr ($item+".renderable")`) {
+            string $renderCamParent[] = `listRelatives -p $item`;
+            $renderCamList[size($renderCamList)] = $renderCamParent[0];
+        }
+    }
+    text -e -l (`stringArrayToString $renderCamList "\n"`) rrUIRenderableCamsText;
+    
+    //default image format list
+    string $formatList[] = {"GIF", "SoftImage (pic)", "RLA", "Tiff", "TIff 16", "SGI", "Alias", "IFF", "JPEG", "EPS",
+                                "IFF16", "Cineon", "Quantel", "SGI16", "other", "other", "other", "other", "other", "Targa",
+                                "Bmp", "SGIMV", "QT", "AVI", "MACPAINT", "other", "other", "other", "other", "other",
+                                "other", "PSD",  "PNG", "QUICKDRAW", "QTIMAGE", "DDS", "PSD Layered", "other", "other", "other",
+                                "other", "other", "other", "other", "other", "other", "other", "other", "other", "other",
+                                "other", "IMFplugin", "Custom", "other", "other", "other", "other", "other", "other", "SWF",
+                                "AI", "SVG", "SWFT"};
+    
+    //render specific settings
+    string $renderer = `getAttr "defaultRenderGlobals.currentRenderer"`;
+    string $rendererStr = interToUI($renderer);
+    string $settingsStr = ("Renderer:      "+$rendererStr+"\n");
+    
+    if ($renderer == "renderMan") {
+        //update image format
+        text -e -l `getAttr "rmanFinalOutputGlobals0.rman__riopt__Display_type"` rrUIImageFormatText;
+        //get the appropriate vars and append to string
+        $settingsStr += ("Shading Rate:  "+`getAttr "renderManGlobals.rman__riattr___ShadingRate"` +"\n");
+        $settingsStr += ("Pixel Samples: "+`getAttr "renderManGlobals.rman__riopt___PixelSamples0"`+" "+`getAttr "renderManGlobals.rman__riopt___PixelSamples1"`+"\n");
+        $settingsStr += ("Bucket Size:   "+`getAttr "renderManGlobals.rman__riopt__limits_bucketsize0"` + " " + `getAttr "renderManGlobals.rman__riopt__limits_bucketsize1"` +"\n");
+        $settingsStr += ("Grid Size:     "+`getAttr "renderManGlobals.rman__riopt__limits_gridsize"`+"\n");
+        $settingsStr += ("Motion Blur:   "+(`getAttr "renderManGlobals.rman__torattr___motionBlur"` == 1 ? "ON" : "OFF")+"\n");
+        $settingsStr += ("Raytracing:    "+(`getAttr "renderManGlobals.rman__torattr___rayTracing"` == 1 ? "ON" : "OFF")+"\n");
+        $settingsStr += ("Statistics:    "+(`getAttr "renderManGlobals.rman__riopt__statistics_endofframe"` == 1 ? "ON" : "OFF")+"");
+        
+    } else if ($renderer == "mayaSoftware") {
+        //update image format
+        int $imageFormat = `getAttr defaultRenderGlobals.imageFormat`;
+        text -e -l ($formatList[$imageFormat]) rrUIImageFormatText;
+        
+        //get the appropriate vars and append to string
+        string $shadeQualityList[] = {"Highest", "High", "Medium", "Low"};
+        int $shadeQuality = `getAttr "defaultRenderQuality.edgeAntiAliasing"`;
+        $settingsStr += ("Quality:       "+$shadeQualityList[$shadeQuality]+"\n");
+        $settingsStr += ("Samples:       "+`getAttr "defaultRenderQuality.shadingSamples"`+" to "+`getAttr "defaultRenderQuality.maxShadingSamples"`+"\n");
+        $settingsStr += ("Motion Blur:   "+(`getAttr "defaultRenderGlobals.motionBlur"` == 1 ? "ON" : "OFF")+"\n");
+        $settingsStr += ("Raytracing:    "+(`getAttr "defaultRenderQuality.enableRaytracing"` == 1 ? "ON" : "OFF")+"");
+        
+    } else {
+        //update image format
+        int $imageFormat = `getAttr defaultRenderGlobals.imageFormat`;
+        text -e -l ($formatList[$imageFormat]) rrUIImageFormatText;
+    }
+    text -e -l $settingsStr rrUIRendererSettingsText;
+}
+
+
+
+
+
+
+
+//==================================================================================================
+//file browse handlers
+global proc rrUISceneHandler(string $result, string $type) {
+    //changes:
+    //  scene field
+    //  scene dir field
+    //  proj dir field
+    string $scene = `match "[^/\\]*$" $result`;
+    string $sceneDir = `substitute ("/"+$scene) $result ""`;
+    $sceneDir = `rrMAYAPath $sceneDir`;
+    //beacuse sceneDir was MAYAPathed, proj doesn't have to be
+    string $projDir = `rrProjPath $sceneDir`;
+    //remove .ma
+    $scene = `substitute ".ma$" $scene ""`;
+    
+    textField -e -tx $scene rrUISceneField;
+    textField -e -tx $sceneDir rrUISceneDirField;
+    //only auto-get project if it was different than scene dir
+    if ($projDir != $sceneDir)
+        textField -e -tx $projDir rrUIProjDirField;
+}
+
+
+global proc rrUISceneDirHandler(string $result, string $type) {
+    //changes:
+    //  scene dir field
+    //  proj dir field
+    string $sceneDir = `rrMAYAPath $result`;
+    //beacuse sceneDir was MAYAPathed, proj doesn't have to be
+    string $projDir = `rrProjPath $sceneDir`;
+    
+    textField -e -tx $sceneDir rrUISceneDirField;
+    //only auto-get project if it was different than scene dir
+    if ($projDir != $sceneDir)
+        textField -e -tx $projDir rrUIProjDirField;
+}
+
+
+global proc rrUIProjDirHandler(string $result, string $type) {
+    //changes:
+    //  proj dir field
+    string $projDir = `rrMAYAPath $result`;
+    textField -e -tx $projDir rrUIProjDirField;
+}
+
+
+
+//==================================================================================================
+//path modification procs
+global proc string rrProjPath(string $path) {
+    string $newPath = "";
+    string $pathSplit[] = `stringToStringArray $path "/"`;
+    if (!size($pathSplit)) return "";
+    
+    int $scenesFound = 0;
+    for ($i = 0; $i < size($pathSplit); $i++) {
+        $newPath += $pathSplit[$i];
+        
+        //if we hit the end and no scenes was found, return nothing;
+        if ($i == size($pathSplit)-1) return "";
+        
+        //stop once you hit "scenes", youll have the project directory
+        if ($pathSplit[$i+1] == "scenes") {
+            $scenesFound = 1;
+            break;
+        }
+        
+        $newPath += "/";
+    }
+    
+    return $newPath;
+}
+global proc string rrMAYAPath(string $path) {
+    string $newPath = "";
+    string $pathSplit[] = `stringToStringArray $path "/"`;
+    if (!size($pathSplit)) return "";
+    
+    int $mayaFound = 0;
+    for ($dir in $pathSplit) {
+        if ($dir == "MAYA" || $dir == "maya")
+            $mayaFound = 1;
+        
+        //don't start adding until MAYA or maya is found
+        if ($mayaFound) {
+            $newPath += $dir;
+            if ($dir != ($pathSplit[size($pathSplit)-1]))
+                $newPath += "/";
+        }
+        
+    }
+    
+    return $newPath;
+}

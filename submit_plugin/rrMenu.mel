@@ -1,0 +1,39 @@
+/*
+    Ringling Rendering Menu
+    0.1
+    
+    created by Bohdon Sayre
+    bsayre@c.ringling.edu
+    
+    unique prefix: rrMenu
+    
+    Description:
+        This script creates a menu for access to
+        several rendering scripts including the
+        job submission GUI
+
+    Version 0.1:
+                >  Includes GUI only
+*/
+
+global proc rrMenu() {
+    if (`menu -ex rrMenu`)
+        deleteUI -m rrMenu;
+    if (`menuItem -ex rrMenuItem`)
+        deleteUI -mi rrMenuItem;
+    
+    //get the maya main window
+    global string $gMainWindow;
+    
+    //make menu
+    setParent $gMainWindow;
+    if (`menu -ex dilloTools`) {
+        setParent -m dilloTools;
+        menuItem -sm 1 -l "Ringling Rendering" rrMenuItem;
+    } else {
+        menu -to 1 -l "Ringling Rendering" -aob 1 rrMenu;
+    }
+    
+    menuItem -l "Submit a Job..." -c "source rrSubmit; rrSubmit;" rrMenuSubmitItem;
+    menuItem -l "Render Me!" -c "" rrMenuRenderMeItem;
+}
